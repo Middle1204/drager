@@ -56,7 +56,7 @@ export const SubNumber = styled.div`
   margin-top: 0.5rem;
 `;
 
-
+  
 export const Circle = styled.div`
   position: absolute;
   width: 50px;
@@ -85,3 +85,5 @@ export const CircleText = styled.span`
   font-weight: bold;
   pointer-events: none;
 `;
+
+

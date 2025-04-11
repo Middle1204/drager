@@ -7,7 +7,9 @@ const Play = () => {
   const [isMouseDown, setIsMouseDown] = useState(false);
   const [effects, setEffects] = useState([]);
   const [randomNumber, setRandomNumber] = useState('00');
+  const [selectedCircles, setSelectedCircles] = useState([]);
 
+  
   const circleId = useRef(0);
 
   // 마우스 눌림 감지
@@ -34,7 +36,7 @@ const Play = () => {
         setCircles((prev) => [...prev, newCircle]);
       }
     }, 1000);
-    
+
     {circles.map((circle) => (
       <S.Circle
         key={circle.id}
@@ -48,31 +50,37 @@ const Play = () => {
     return () => clearInterval(interval);
   }, [circles]);
   
-  
-
-
-
 
   // 랜덤 숫자 갱신
   useEffect(() => {
     const interval = setInterval(() => {
-      const newNumber = Math.floor(Math.random() * 90 + 10); // 10~99
+      const newNumber = Math.floor(Math.random() * 20 + 1); // 1~20
       setRandomNumber(newNumber.toString());
-    }, 1000); // 1초마다 업데이트
+    }, 1000);    
     return () => clearInterval(interval);
   }, []);
 
   const handleHit = (circle) => {
     if (!isMouseDown) return;
-
-    setCircles((prev) => prev.filter((c) => c.id !== circle.id));
-    setScore((prev) => prev + 1);
-
-    setEffects((prev) => [
-      ...prev,
-      { id: Math.random(), x: circle.x, y: circle.y },
-    ]);
+    if (selectedCircles.some((c) => c.id === circle.id)) return;
+  
+    const newSelection = [...selectedCircles, circle];
+    const total = newSelection.reduce((sum, c) => sum + c.num, 0);
+  
+    if (total === parseInt(randomNumber)) {
+      setCircles((prev) => prev.filter((c) => !newSelection.some((s) => s.id === c.id)));
+      setScore((prev) => prev + newSelection.length);
+      setSelectedCircles([]);
+      newSelection.forEach((c) => {
+        setEffects((prev) => [...prev, { id: Math.random(), x: c.x, y: c.y }]);
+      });
+    } else if (total > parseInt(randomNumber)) {
+      setSelectedCircles([]); // 실패 시 선택 초기화
+    } else {
+      setSelectedCircles(newSelection); // 조건 아직 만족 안되면 선택 유지
+    }
   };
+  
 
   const handleExit = () => {
     alert('게임 종료');
