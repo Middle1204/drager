@@ -1,21 +1,33 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as S from './style';
 
+const generateRandomTarget = () => Math.floor(Math.random() * 11 + 5).toString(); // 5~15
+
+const CIRCLE_SIZE = 80; // 더 큰 원 크기
+const SPAWN_AREA = {
+  top: 50,
+  left: 50,
+  size: 40,
+};
+
 const Play = () => {
   const [circles, setCircles] = useState([]);
   const [score, setScore] = useState(0);
   const [isMouseDown, setIsMouseDown] = useState(false);
   const [effects, setEffects] = useState([]);
-  const [randomNumber, setRandomNumber] = useState('00');
+  const [randomNumber, setRandomNumber] = useState(generateRandomTarget());
   const [selectedCircles, setSelectedCircles] = useState([]);
+  const [trail, setTrail] = useState([]);
 
-  
   const circleId = useRef(0);
+  const trailTimeoutRef = useRef(null);
 
-  // 마우스 눌림 감지
   useEffect(() => {
     const handleDown = () => setIsMouseDown(true);
-    const handleUp = () => setIsMouseDown(false);
+    const handleUp = () => {
+      setIsMouseDown(false);
+      setSelectedCircles([]); // 마우스에서 손 떼면 선택 초기화
+    };
     window.addEventListener('mousedown', handleDown);
     window.addEventListener('mouseup', handleUp);
     return () => {
@@ -25,62 +37,94 @@ const Play = () => {
   }, []);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (circles.length < 10) {
-        const newCircle = {
-          id: circleId.current++,
-          x: Math.random() * 90,
-          y: Math.random() * 90,
-          num: Math.floor(Math.random() * 10), // 0~9
-        };
-        setCircles((prev) => [...prev, newCircle]);
+    const handleMove = (e) => {
+      if (isMouseDown) {
+        const xPercent = (e.clientX / window.innerWidth) * 100;
+        const yPercent = (e.clientY / window.innerHeight) * 100;
+
+        setTrail((prev) => [...prev.slice(-10), {
+          id: Math.random(),
+          x: e.clientX,
+          y: e.clientY,
+        }]);
+
+        circles.forEach((circle) => {
+          const dx = (xPercent - circle.x) * window.innerWidth / 100;
+          const dy = (yPercent - circle.y) * window.innerHeight / 100;
+          const dist = Math.sqrt(dx ** 2 + dy ** 2);
+          if (dist < CIRCLE_SIZE / 2) {
+            handleHit(circle);
+          }
+        });
       }
-    }, 1000);
+    };
 
-    {circles.map((circle) => (
-      <S.Circle
-        key={circle.id}
-        style={{ top: `${circle.y}%`, left: `${circle.x}%` }}
-        onMouseEnter={() => handleHit(circle)}
-      >
-        <S.CircleText>{circle.num}</S.CircleText>
-      </S.Circle>
-    ))}
-    
-    return () => clearInterval(interval);
-  }, [circles]);
-  
+    window.addEventListener('mousemove', handleMove);
+    return () => window.removeEventListener('mousemove', handleMove);
+  }, [isMouseDown, circles]);
 
-  // 랜덤 숫자 갱신
+  useEffect(() => {
+    if (!isMouseDown && trail.length > 0) {
+      trailTimeoutRef.current = setTimeout(() => setTrail([]), 300);
+    }
+    return () => clearTimeout(trailTimeoutRef.current);
+  }, [isMouseDown, trail]);
+
+  const isOverlapping = (x, y, circles) => {
+    return circles.some(circle => {
+      const dx = (x - circle.x) * window.innerWidth / 100;
+      const dy = (y - circle.y) * window.innerHeight / 100;
+      return Math.sqrt(dx ** 2 + dy ** 2) < CIRCLE_SIZE;
+    });
+  };
+
   useEffect(() => {
     const interval = setInterval(() => {
-      const newNumber = Math.floor(Math.random() * 20 + 1); // 1~20
-      setRandomNumber(newNumber.toString());
-    }, 1000);    
+      setCircles((prev) => {
+        if (prev.length >= 10) return prev;
+        let attempts = 0;
+        while (attempts < 20) {
+          const x = SPAWN_AREA.left - SPAWN_AREA.size / 2 + Math.random() * SPAWN_AREA.size;
+          const y = SPAWN_AREA.top - SPAWN_AREA.size / 2 + Math.random() * SPAWN_AREA.size;
+
+          if (!isOverlapping(x, y, prev)) {
+            const newCircle = {
+              id: circleId.current++,
+              x,
+              y,
+              num: Math.floor(Math.random() * 9) + 1,
+            };
+            return [...prev, newCircle];
+          }
+          attempts++;
+        }
+        return prev;
+      });
+    }, 1000);
     return () => clearInterval(interval);
   }, []);
 
   const handleHit = (circle) => {
     if (!isMouseDown) return;
     if (selectedCircles.some((c) => c.id === circle.id)) return;
-  
+
     const newSelection = [...selectedCircles, circle];
     const total = newSelection.reduce((sum, c) => sum + c.num, 0);
-  
+
     if (total === parseInt(randomNumber)) {
       setCircles((prev) => prev.filter((c) => !newSelection.some((s) => s.id === c.id)));
       setScore((prev) => prev + newSelection.length);
       setSelectedCircles([]);
+      setRandomNumber(generateRandomTarget());
       newSelection.forEach((c) => {
         setEffects((prev) => [...prev, { id: Math.random(), x: c.x, y: c.y }]);
       });
     } else if (total > parseInt(randomNumber)) {
-      setSelectedCircles([]); // 실패 시 선택 초기화
+      setSelectedCircles([]);
     } else {
-      setSelectedCircles(newSelection); // 조건 아직 만족 안되면 선택 유지
+      setSelectedCircles(newSelection);
     }
   };
-  
 
   const handleExit = () => {
     alert('게임 종료');
@@ -96,12 +140,26 @@ const Play = () => {
         <S.SubNumber>{randomNumber}</S.SubNumber>
       </S.ScoreWrapper>
 
+      <S.SpawnAreaBox
+        style={{
+          top: `${SPAWN_AREA.top}%`,
+          left: `${SPAWN_AREA.left}%`,
+          width: `${SPAWN_AREA.size}%`,
+          height: `${SPAWN_AREA.size}%`,
+          transform: 'translate(-50%, -50%)',
+          backgroundColor: 'rgba(255,255,255,0.08)',
+          position: 'absolute',
+        }}
+      />
+
       {circles.map((circle) => (
         <S.Circle
           key={circle.id}
           style={{ top: `${circle.y}%`, left: `${circle.x}%` }}
           onMouseEnter={() => handleHit(circle)}
-        />
+        >
+          {circle.num}
+        </S.Circle>
       ))}
 
       {effects.map((effect) => (
@@ -110,6 +168,7 @@ const Play = () => {
           style={{ top: `${effect.y}%`, left: `${effect.x}%` }}
         />
       ))}
+
     </S.Container>
   );
 };
