@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as S from './style';
 
-const generateRandomTarget = () => Math.floor(Math.random() * 11 + 5).toString(); // 5~15
+const generateRandomTarget = () => Math.floor(Math.random() * 11 + 5).toString(); 
 
-const CIRCLE_SIZE = 80; // 더 큰 원 크기
+const CIRCLE_SIZE = 80;
 const SPAWN_AREA = {
   top: 50,
   left: 50,
@@ -26,7 +26,7 @@ const Play = () => {
     const handleDown = () => setIsMouseDown(true);
     const handleUp = () => {
       setIsMouseDown(false);
-      setSelectedCircles([]); // 마우스에서 손 떼면 선택 초기화
+      setSelectedCircles([]); 
     };
     window.addEventListener('mousedown', handleDown);
     window.addEventListener('mouseup', handleUp);
@@ -148,14 +148,18 @@ const Play = () => {
           height: `${SPAWN_AREA.size}%`,
           transform: 'translate(-50%, -50%)',
           backgroundColor: 'rgba(255,255,255,0.08)',
-          position: 'absolute',
+          position: 'absolute'
         }}
       />
 
       {circles.map((circle) => (
         <S.Circle
           key={circle.id}
-          style={{ top: `${circle.y}%`, left: `${circle.x}%` }}
+          style={{
+            top: `${circle.y}%`,
+            left: `${circle.x}%`,
+            backgroundColor: selectedCircles.some(c => c.id === circle.id) ? 'rgba(255,255,255,0.3)' : 'white'
+          }}
           onMouseEnter={() => handleHit(circle)}
         >
           {circle.num}
@@ -169,6 +173,22 @@ const Play = () => {
         />
       ))}
 
+      {trail.map((t) => (
+        <S.TrailCanvas>
+        <svg width="100%" height="100%">
+          <polyline
+            points={trail.map(p => `${p.x},${p.y}`).join(' ')}
+            stroke="white"
+            strokeWidth="4"
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{ opacity: 0.6 }}
+          />
+        </svg>
+      </S.TrailCanvas>
+      
+      ))}
     </S.Container>
   );
 };
